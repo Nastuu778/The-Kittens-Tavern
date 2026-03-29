@@ -1,0 +1,22 @@
+# Размеры экрана
+WIDTH = 800
+HEIGHT = 600
+FPS = 60
+
+# Цвета
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+BLUE = (0, 100, 255)
+RED = (255, 0, 0)
+GRAY = (128, 128, 128)
+DARK_GRAY = (64, 64, 64)
+
+# Игрок
+PLAYER_SPEED = 5
+PLAYER_SIZE = 50
+
+# Диалоги
+DIALOG_BOX_HEIGHT = 180
+DIALOG_PADDING = 20
+DIALOG_FONT_SIZE = 24
+DIALOG_TEXT_SPEED = 0.05  # секунды на символ
