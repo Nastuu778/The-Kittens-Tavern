@@ -9,7 +9,7 @@ from npc import NPC
 from camera import Camera
 from location_builder import VillageBuilder, ForestBuilder, LakeBuilder
 from map_loader import MapLoader
-
+from settings import LAYER_RENDER_ORDER
 
 class Game:
     def __init__(self):
@@ -61,15 +61,14 @@ class Game:
                 print(f"Слой: {layer['name']} (тип: {layer['type']})")
                 
                 # Если это Object Layer
-                # Если это Object Layer
                 if layer['name'] == 'Collision' and layer['type'] == 'objectgroup':
-                    collision_walls = self.map_loader.load_collision_layer(layer)  # 🔧 Убрали scale
+                    collision_walls = self.map_loader.load_collision_layer(layer)
                     print(f"✅ Загружено {len(collision_walls)} хитбоксов из objectgroup!")
                     break
 
                 # Если это Tile Layer
                 elif layer['name'] == 'Collision' and layer['type'] == 'tilelayer':
-                    collision_walls = self.map_loader.load_collision_from_tiles(layer, map_data)  # 🔧 Убрали scale=1
+                    collision_walls = self.map_loader.load_collision_from_tiles(layer, map_data)
                     print(f"✅ Загружено {len(collision_walls)} хитбоксов из tilelayer!")
                     break
                             
@@ -218,23 +217,35 @@ class Game:
                     screen_y + tile_height * scale >= 0 and screen_y <= HEIGHT):
                     self.screen.blit(scaled_tile, (screen_x, screen_y))
 
+    def _draw_layer_by_name(self, layer_name):
+        """Вспомогательный метод для отрисовки слоя по имени"""
+        for layer in self.current_location.map_data['layers']:
+            if layer.get('name') == layer_name and layer.get('visible', True):
+                self.draw_tiled_layer(layer)
+
     def draw(self):
-        # Очищаем экран
         self.screen.fill(TEX_GRASS)
         
-        # Проверяем, есть ли map_data
         if hasattr(self.current_location, 'map_data') and self.current_location.map_data:
-            # Рисуем все слои карты
-            for layer in self.current_location.map_data['layers']:
-                # Пропускаем невидимые слои
-                if not layer.get('visible', True):
-                    continue
-                
-                # 🔧 ИСПРАВЛЕНО: рисуем ВСЕ слои (включая группы)
-                # draw_tiled_layer сам разберётся с типом слоя
-                self.draw_tiled_layer(layer)
+            # Рисуем фон
+            for layer_name in LAYER_RENDER_ORDER['background']:
+                self._draw_layer_by_name(layer_name)
+            
+            # Рисуем средний слой (под игроком)
+            for layer_name in LAYER_RENDER_ORDER['middle_below']:
+                self._draw_layer_by_name(layer_name)
+            
+            # Рисуем игрока
+            self.player.draw(self.screen, self.camera)
+            
+            # Рисуем средний слой (над игроком)
+            for layer_name in LAYER_RENDER_ORDER['middle_above']:
+                self._draw_layer_by_name(layer_name)
+            
+            # Рисуем передний план
+            for layer_name in LAYER_RENDER_ORDER['foreground']:
+                self._draw_layer_by_name(layer_name)
         else:
-            # Fallback на старую систему отрисовки
             self.current_location.draw(self.screen, self.camera, self.player)
         
         # Рисуем переходы между локациями
@@ -244,9 +255,6 @@ class Game:
         # Рисуем NPC
         for npc in self.current_location.npcs:
             npc.draw(self.screen, self.camera)
-        
-        # Рисуем игрока
-        self.player.draw(self.screen, self.camera)
         
         # Рисуем зоны взаимодействия
         for zone in self.current_location.zones:

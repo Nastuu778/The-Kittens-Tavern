@@ -32,6 +32,14 @@ DIALOG_PADDING = 20
 DIALOG_FONT_SIZE = 24
 DIALOG_TEXT_SPEED = 0.05  # секунды на символ
 
-PLAYER_SIZE = 50  # Остаётся неизменным
+# PLAYER_SIZE = 40  # Остаётся неизменным
 PLAYER_SPEED = 5  # Можно чуть увеличить
 MAP_SCALE = 2     # Карта в 2 раза больше
+
+LAYER_RENDER_ORDER = {
+    'background': ['Bach', 'Back', 'Вода', 'Земля', 'Дорожка', 'растения'],
+    'middle_below': ['Цветочный', 'Кристаллы', 'Слой тайлов 18'],  # Убрал Забор отсюда
+    'player': None,  # Игрок рисуется здесь
+    'middle_above': ['Middle', 'Деревья', 'Ворота', 'Слой тайлов 9', 'Слой тайлов 23'],
+    'foreground': ['Front', 'Слой тайлов 24', 'Забор']  # Добавил Забор сюда
+}

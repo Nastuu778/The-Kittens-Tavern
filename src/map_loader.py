@@ -115,36 +115,42 @@ class MapLoader:
         """Загружает хитбоксы из слоя объектов"""
         walls = []
         
+        # На сколько пикселей сместить вниз
+        Y_OFFSET = 200  # ← поменяй значение под свои нужды
+        
         for obj in layer_data.get('objects', []):
-            x = obj['x'] / scale
-            y = obj['y'] / scale
-            width = obj.get('width', 0) / scale
-            height = obj.get('height', 0) / scale
+            x = obj['x']
+            y = obj['y'] + Y_OFFSET  # ← Добавляем смещение вниз
+            width = obj.get('width', 0)
+            height = obj.get('height', 0)
             
+            print(f"Было y={obj['y']}, стало y={y}")  # ← Отладка
+
             if width > 0 and height > 0:
                 walls.append(Wall(x, y, width, height))
         
-        print(f"   ✅ Загружено {len(walls)} хитбоксов из слоя '{layer_data.get('name')}'")
+        print(f"   ✅ Загружено {len(walls)} хитбоксов (смещены вниз на {Y_OFFSET})")
         return walls
 
     # Этот метод должен быть на том же уровне отступа, что и load_collision_layer
-    def load_collision_from_tiles(self, layer_data, map_data, scale=1):
-        """Загружает хитбоксы из ТАЙЛОВОГО слоя"""
-        walls = []
-        
-        map_width = map_data['width']
+    def load_collision_from_tiles(self, layer, map_data, scale=1):
+        """Загружает хитбоксы из тайлового слоя коллизий"""
+        collision_walls = []
         tile_width = map_data['tilewidth']
         tile_height = map_data['tileheight']
-        data = layer_data['data']
+        map_width = map_data['width']
+        
+        data = layer.get('data', [])
+        
+        # 🔧 Добавь смещение вниз
+        Y_OFFSET = 10  # ← поменяй на нужное значение
         
         for i, gid in enumerate(data):
-            if gid == 0:
-                continue
-            
-            x = (i % map_width) * tile_width / scale
-            y = (i // map_width) * tile_height / scale
-            
-            walls.append(Wall(x, y, tile_width / scale, tile_height / scale))
+            if gid != 0:  # Если тайл коллизии
+                x = (i % map_width) * tile_width
+                y = (i // map_width) * tile_height + Y_OFFSET  # ← ДОБАВЛЯЕМ СМЕЩЕНИЕ
+                
+                collision_walls.append(Wall(x, y, tile_width, tile_height))
         
-        print(f"   ✅ Загружено {len(walls)} хитбоксов из тайлового слоя")
-        return walls
+        print(f"   ✅ Загружено {len(collision_walls)} хитбоксов из тайлового слоя (смещены на {Y_OFFSET} вниз)")
+        return collision_walls
