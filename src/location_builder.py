@@ -44,8 +44,8 @@ class VillageBuilder(LocationBuilder):
         super().__init__()
         self.name = "Деревня"
         self.bg_color = TEX_GRASS
-        self.width = 2000
-        self.height = 1500
+        self.width = 1500
+        self.height = 1000
         self._build_village()
     
     def _build_village(self):

@@ -1,7 +1,7 @@
 # Размеры экрана
-WIDTH = 1280
-HEIGHT = 720
-FPS = 60
+WIDTH = 1480
+HEIGHT = 920
+FPS = 25
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -24,10 +24,14 @@ TEX_BUSH = (0, 100, 0)           # куст
 
 # Игрок
 PLAYER_SPEED = 5
-PLAYER_SIZE = 50
+PLAYER_SIZE = 40
 
 # Диалоги
 DIALOG_BOX_HEIGHT = 180
 DIALOG_PADDING = 20
 DIALOG_FONT_SIZE = 24
 DIALOG_TEXT_SPEED = 0.05  # секунды на символ
+
+PLAYER_SIZE = 50  # Остаётся неизменным
+PLAYER_SPEED = 5  # Можно чуть увеличить
+MAP_SCALE = 2     # Карта в 2 раза больше

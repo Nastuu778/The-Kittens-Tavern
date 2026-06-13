@@ -30,33 +30,30 @@ class Player:
         for wall in walls:
             if self.check_collision(wall):
                 self.y = old_y
-                
-        # Ограничиваем ГРАНИЦАМИ ТЕКУЩЕЙ ЛОКАЦИИ
+        
+        # Границы мира (без масштаба, логические координаты)
         self.x = max(0, min(self.x, world_width - self.width))
         self.y = max(0, min(self.y, world_height - self.height))
-    
-    def check_collision(self, rect):
-        # Если у объекта есть get_collision_rect(), используем его
-        if hasattr(rect, 'get_collision_rect'):
-            collision_rect = rect.get_collision_rect()
-            if collision_rect is None:
-                return False  # Нет коллизии (например, дорога)
-        else:
-            collision_rect = rect
+
+    def check_collision(self, wall):
+        # Проверяем коллизию в логических координатах
+        wall_rect = wall.get_collision_rect() if hasattr(wall, 'get_collision_rect') else wall.get_rect()
         
-        return (self.x < collision_rect.x + collision_rect.width and
-                self.x + self.width > collision_rect.x and
-                self.y < collision_rect.y + collision_rect.height and
-                self.y + self.height > collision_rect.y)
+        if wall_rect is None:
+            return False
+        
+        return (self.x < wall_rect.x + wall_rect.width and
+                self.x + self.width > wall_rect.x and
+                self.y < wall_rect.y + wall_rect.height and
+                self.y + self.height > wall_rect.y)
     
     def draw(self, screen, camera):
-        # Применяем камеру
-        rect = camera.apply_rect(self.get_rect())
+        # Игрок остаётся 50x50, просто сдвигаем по камере
+        screen_x = self.x * camera.scale + camera.camera.x
+        screen_y = self.y * camera.scale + camera.camera.y
         
-        # Рисуем игрока (всегда полностью видимым)
+        rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
         pygame.draw.rect(screen, self.color, rect)
-        
-        # Обводка
         pygame.draw.rect(screen, BLACK, rect, 2)
         
     def get_rect(self):
