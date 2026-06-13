@@ -9,8 +9,9 @@ class Wall:
         self.height = height
         self.color = color
         
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+    def draw(self, screen, camera):
+        rect = camera.apply_rect(self.get_rect())
+        pygame.draw.rect(screen, self.color, rect)
         
     def get_rect(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)

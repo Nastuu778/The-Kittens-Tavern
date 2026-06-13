@@ -15,10 +15,11 @@ class InteractionZone:
         zone_rect = pygame.Rect(self.x, self.y, self.width, self.height)
         return player_rect_obj.colliderect(zone_rect)
     
-    def draw(self, screen):
-        surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        pygame.draw.rect(surface, (0, 255, 0, 100), (0, 0, self.width, self.height))
-        screen.blit(surface, (self.x, self.y))
+    def draw(self, screen, camera):
+        rect = camera.apply_rect(self.get_rect())
+        surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(surface, (0, 255, 0, 100), (0, 0, rect.width, rect.height))
+        screen.blit(surface, rect.topleft)
     
     def get_rect(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)

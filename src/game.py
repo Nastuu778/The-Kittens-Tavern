@@ -6,6 +6,7 @@ from zone import InteractionZone
 from dialog_system import DialogSystem
 from location import Location, TransitionZone
 from npc import NPC
+from camera import Camera  # Импортируем камеру!
 
 class Game:
     def __init__(self):
@@ -18,10 +19,16 @@ class Game:
         # Система диалогов
         self.dialog_system = DialogSystem()
         
+        # КАМЕРА (начальные размеры — подберутся при первой локации)
+        self.camera = Camera(2000, 1500)
+        
         # Создаем локации
         self.locations = self.create_locations()
         self.current_location_id = "location_1"
         self.current_location = self.locations[self.current_location_id]
+        
+        # Настраиваем камеру под первую локацию
+        self.camera.change_size(self.current_location.width, self.current_location.height)
         
         # Игрок
         self.player = Player(100, 100)
@@ -33,10 +40,11 @@ class Game:
         """Создание всех локаций игры"""
         locations = {}
         
-        # === ЛОКАЦИЯ 1: Белая деревня (стартовая) ===
+        # === ЛОКАЦИЯ 1: Белая деревня (средняя) ===
         location_1_walls = [
             Wall(200, 150, 80, 200),   # Дом 1
             Wall(500, 200, 100, 150),  # Дом 2
+            Wall(800, 300, 120, 120),  # Дом 3
             Wall(50, 400, 150, 50),    # Забор
         ]
         
@@ -51,7 +59,7 @@ class Game:
         ]
         
         location_1_transitions = [
-            TransitionZone(750, 250, 50, 100, "location_2", 50, 250),  # Выход направо
+            TransitionZone(1950, 700, 50, 100, "location_2", 50, 700),  # Выход направо
         ]
         
         locations["location_1"] = Location(
@@ -59,31 +67,41 @@ class Game:
             bg_color=WHITE,
             walls=location_1_walls,
             zones=location_1_zones,
-            npcs=location_1_npcs
+            npcs=location_1_npcs,
+            width=2000,    # Размер локации
+            height=1500     # Размер локации
         )
         locations["location_1"].transitions = location_1_transitions
         
-        # === ЛОКАЦИЯ 2: Зеленый лес ===
+        # === ЛОКАЦИЯ 2: Зеленый лес (ОГРОМНЫЙ) ===
         location_2_walls = [
             Wall(150, 100, 100, 100),  # Дерево 1
             Wall(400, 300, 120, 120),  # Дерево 2
             Wall(600, 150, 100, 100),  # Дерево 3
-            Wall(250, 450, 150, 80),   # Кусты
+            Wall(900, 400, 80, 80),    # Дерево 4
+            Wall(1200, 200, 100, 100), # Дерево 5
+            Wall(1500, 350, 120, 120), # Дерево 6
+            Wall(1800, 100, 100, 100), # Дерево 7
+            Wall(300, 600, 100, 100),  # Дерево 8
+            Wall(700, 700, 120, 120),  # Дерево 9
+            Wall(1100, 600, 100, 100), # Дерево 10
+            Wall(1600, 800, 100, 100), # Дерево 11
+            Wall(2000, 500, 120, 120), # Дерево 12
         ]
         
         location_2_zones = [
             InteractionZone(300, 150, 40, 40, "NPC_3"),  # Стражник
-            InteractionZone(550, 400, 40, 40, "NPC_4"),  # Житель
+            InteractionZone(1000, 400, 40, 40, "NPC_4"), # Житель
         ]
         
         location_2_npcs = [
             NPC(300, 150, "NPC_3", (128, 128, 128)),  # Серый
-            NPC(550, 400, "NPC_4", (34, 139, 34)),    # Зеленый
+            NPC(1000, 400, "NPC_4", (34, 139, 34)),    # Зеленый
         ]
         
         location_2_transitions = [
-            TransitionZone(0, 250, 50, 100, "location_1", 700, 250),   # Назад в деревню
-            TransitionZone(750, 300, 50, 100, "location_3", 50, 300),  # Вперед к озеру
+            TransitionZone(0, 400, 50, 100, "location_1", 850, 400),   # Назад в деревню
+            TransitionZone(2400, 500, 50, 100, "location_3", 50, 200), # Вперед к озеру
         ]
         
         locations["location_2"] = Location(
@@ -91,27 +109,28 @@ class Game:
             bg_color=(34, 139, 34),  # Зеленый
             walls=location_2_walls,
             zones=location_2_zones,
-            npcs=location_2_npcs
+            npcs=location_2_npcs,
+            width=1200,
+            height=800
         )
         locations["location_2"].transitions = location_2_transitions
         
-        # === ЛОКАЦИЯ 3: Голубое озеро ===
+        # === ЛОКАЦИЯ 3: Голубое озеро (МАЛЕНЬКОЕ) ===
         location_3_walls = [
-            Wall(100, 200, 80, 150),  # Скала 1
-            Wall(450, 100, 100, 120), # Скала 2
-            Wall(600, 350, 120, 100), # Скала 3
+            Wall(100, 100, 80, 80),   # Скала 1
+            Wall(300, 200, 100, 60),  # Скала 2
         ]
         
         location_3_zones = [
-            InteractionZone(350, 250, 40, 40, "NPC_1"),  # Рыбак (повторное использование NPC_1)
+            InteractionZone(200, 150, 40, 40, "NPC_1"),  # Рыбак
         ]
         
         location_3_npcs = [
-            NPC(350, 250, "NPC_1", (0, 100, 200)),  # Синий (рыбак)
+            NPC(200, 150, "NPC_1", (0, 100, 200)),  # Синий (рыбак)
         ]
         
         location_3_transitions = [
-            TransitionZone(0, 300, 50, 100, "location_2", 700, 300),  # Назад в лес
+            TransitionZone(0, 200, 50, 100, "location_2", 2350, 500),  # Назад в лес
         ]
         
         locations["location_3"] = Location(
@@ -119,7 +138,9 @@ class Game:
             bg_color=(135, 206, 235),  # Голубой (Sky Blue)
             walls=location_3_walls,
             zones=location_3_zones,
-            npcs=location_3_npcs
+            npcs=location_3_npcs,
+            width=500,    # Маленькое озеро
+            height=400    # Маленькое озеро
         )
         locations["location_3"].transitions = location_3_transitions
         
@@ -152,8 +173,13 @@ class Game:
     def update(self):
         if not self.dialog_system.active:
             keys = pygame.key.get_pressed()
-            # Передаем стены текущей локации
-            self.player.move(keys, self.current_location.get_walls())
+            # Передаем стены И РАЗМЕРЫ текущей локации
+            self.player.move(
+                keys, 
+                self.current_location.get_walls(),
+                self.current_location.width,
+                self.current_location.height
+            )
             
             # Проверка активных зон взаимодействия
             player_rect = self.player.get_rect()
@@ -168,6 +194,9 @@ class Game:
                                        transition.target_y)
                     break
         
+        # ОБНОВЛЯЕМ КАМЕРУ
+        self.camera.update(self.player)
+        
         # Обновление диалогов
         self.dialog_system.update(self.dt)
     
@@ -178,18 +207,22 @@ class Game:
             self.current_location = self.locations[location_id]
             self.player.x = player_x
             self.player.y = player_y
-            print(f"Переход на локацию: {self.current_location.name}")
+            
+            # ВАЖНО: Меняем размер камеры под новую локацию!
+            self.camera.change_size(self.current_location.width, self.current_location.height)
+            
+            print(f"Переход на локацию: {self.current_location.name} ({self.current_location.width}x{self.current_location.height})")
     
     def draw(self):
-        # Рисуем текущую локацию
-        self.current_location.draw(self.screen)
+        # Рисуем текущую локацию С УЧЕТОМ КАМЕРЫ
+        self.current_location.draw(self.screen, self.camera)
         
         # Рисуем переходы
         for transition in self.current_location.transitions:
-            transition.draw(self.screen)
+            transition.draw(self.screen, self.camera)
             
         # Рисуем игрока
-        self.player.draw(self.screen)
+        self.player.draw(self.screen, self.camera)
         
         # Интерфейс
         self.draw_ui()
@@ -209,6 +242,14 @@ class Game:
         pygame.draw.rect(self.screen, WHITE, (10, 10, 250, 40))
         pygame.draw.rect(self.screen, BLACK, (10, 10, 250, 40), 2)
         self.screen.blit(location_text, (20, 18))
+        
+        # Координаты игрока и размер локации (для отладки)
+        # coords_text = small_font.render(
+        #     f"X: {int(self.player.x)} Y: {int(self.player.y)} | "
+        #     f"Map: {self.current_location.width}x{self.current_location.height}", 
+        #     True, BLACK
+        # )
+        # self.screen.blit(coords_text, (10, 60))
         
         if not self.dialog_system.active:
             # Подсказки управления

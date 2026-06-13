@@ -10,7 +10,7 @@ class Player:
         self.speed = PLAYER_SPEED
         self.color = BLUE
         
-    def move(self, keys, walls=[]):
+    def move(self, keys, walls=[], world_width=2000, world_height=1500):
         old_x, old_y = self.x, self.y
         
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -31,8 +31,9 @@ class Player:
             if self.check_collision(wall):
                 self.y = old_y
                 
-        self.x = max(0, min(self.x, WIDTH - self.width))
-        self.y = max(0, min(self.y, HEIGHT - self.height - DIALOG_BOX_HEIGHT))
+        # Ограничиваем ГРАНИЦАМИ ТЕКУЩЕЙ ЛОКАЦИИ
+        self.x = max(0, min(self.x, world_width - self.width))
+        self.y = max(0, min(self.y, world_height - self.height))
     
     def check_collision(self, rect):
         return (self.x < rect.x + rect.width and
@@ -40,8 +41,10 @@ class Player:
                 self.y < rect.y + rect.height and
                 self.y + self.height > rect.y)
     
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.width, self.height))
+    def draw(self, screen, camera):
+        # Применяем камеру
+        rect = camera.apply_rect(self.get_rect())
+        pygame.draw.rect(screen, self.color, rect)
         
     def get_rect(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)
