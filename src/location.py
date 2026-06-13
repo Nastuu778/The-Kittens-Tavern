@@ -1,39 +1,72 @@
 import pygame
 from settings import *
+from entities import Tree  # <-- ДОБАВЬ ЭТУ СТРОКУ!
 
 class Location:
-    def __init__(self, name, bg_color, walls=[], zones=[], npcs=[], width=2000, height=1500):
+    def __init__(self, name, bg_color, walls=[], zones=[], npcs=[], entities=[], width=2000, height=1500):
         self.name = name
         self.bg_color = bg_color
         self.walls = walls
         self.zones = zones
-        self.npcs = npcs  # Список NPC на локации
-        self.width = width   # Размер ЭТОЙ локации
-        self.height = height # Размер ЭТОЙ локации
+        self.npcs = npcs
+        self.entities = entities  # Новые сущности (деревья, дороги и т.д.)
+        self.width = width
+        self.height = height
         
-    def draw(self, screen, camera):
-        # Рисуем фон (весь мир)
+    def draw(self, screen, camera, player):
+        """Отрисовка с сортировкой по Y (z-ordering)"""
+        # Рисуем фон
         screen.fill(self.bg_color)
         
-        # Рисуем границы мира (для отладки)
-        world_rect = pygame.Rect(0, 0, self.width, self.height)
-        world_rect = camera.apply_rect(world_rect)
-        pygame.draw.rect(screen, (255, 0, 0), world_rect, 2)
+        # РИСУЕМ ДОРОГИ (как фон, под всем)
+        for entity in self.entities:
+            if hasattr(entity, 'is_background') and entity.is_background:
+                entity.draw(screen, camera)
         
-        # Рисуем зоны
+        # Собираем все объекты для сортировки (БЕЗ дорог)
+        render_list = []
+        
+        # Добавляем стены
+        for wall in self.walls:
+            render_list.append((wall.y + wall.height, wall))
+        
+        # Добавляем сущности (КРОМЕ фоновых)
+        for entity in self.entities:
+            if not (hasattr(entity, 'is_background') and entity.is_background):
+                render_list.append((entity.y + entity.height, entity))
+        
+        # Добавляем NPC
+        for npc in self.npcs:
+            render_list.append((npc.y + npc.height, npc))
+        
+        # Добавляем игрока (БЕЗ проверки невидимости)
+        render_list.append((player.y + player.height, player))
+        
+        # Сортируем по Y (от дальнего к ближнему)
+        render_list.sort(key=lambda x: x[0])
+        
+        # Рисуем в правильном порядке
+        for _, obj in render_list:
+            if hasattr(obj, 'draw'):
+                obj.draw(screen, camera)
+        
+        # Рисуем зоны (всегда поверх всего)
         for zone in self.zones:
             zone.draw(screen, camera)
         
-        # Рисуем стены
-        for wall in self.walls:
-            wall.draw(screen, camera)
-            
-        # Рисуем NPC (пока просто кружочки)
-        for npc in self.npcs:
-            npc.draw(screen, camera)
-    
     def get_walls(self):
-        return self.walls
+        """Возвращает все объекты с коллизией"""
+        collision_objects = []
+        
+        # Обычные стены
+        collision_objects.extend(self.walls)
+        
+        # Сущности с коллизией (например, стволы деревьев)
+        for entity in self.entities:
+            if hasattr(entity, 'get_collision_rect') and entity.get_collision_rect() is not None:
+                collision_objects.append(entity)
+        
+        return collision_objects
     
     def get_zones(self):
         return self.zones
@@ -46,8 +79,8 @@ class TransitionZone:
         self.y = y
         self.width = width
         self.height = height
-        self.target_location = target_location  # Идентификатор локации
-        self.target_x = target_x  # Позиция игрока после перехода
+        self.target_location = target_location
+        self.target_x = target_x
         self.target_y = target_y
         self.color = color
         self.active = False
@@ -58,14 +91,10 @@ class TransitionZone:
         return player_rect_obj.colliderect(zone_rect)
     
     def draw(self, screen, camera):
-        # Применяем камеру
         rect = camera.apply_rect(pygame.Rect(self.x, self.y, self.width, self.height))
-        
-        # Рисуем зону перехода (дверь/портал)
         pygame.draw.rect(screen, self.color, rect)
         pygame.draw.rect(screen, WHITE, rect, 2)
         
-        # Добавляем текст "ВЫХОД"
         font = pygame.font.Font(None, 24)
         text = font.render("ВЫХОД", True, WHITE)
         text_rect = text.get_rect(center=rect.center)

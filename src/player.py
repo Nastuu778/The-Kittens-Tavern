@@ -36,15 +36,28 @@ class Player:
         self.y = max(0, min(self.y, world_height - self.height))
     
     def check_collision(self, rect):
-        return (self.x < rect.x + rect.width and
-                self.x + self.width > rect.x and
-                self.y < rect.y + rect.height and
-                self.y + self.height > rect.y)
+        # Если у объекта есть get_collision_rect(), используем его
+        if hasattr(rect, 'get_collision_rect'):
+            collision_rect = rect.get_collision_rect()
+            if collision_rect is None:
+                return False  # Нет коллизии (например, дорога)
+        else:
+            collision_rect = rect
+        
+        return (self.x < collision_rect.x + collision_rect.width and
+                self.x + self.width > collision_rect.x and
+                self.y < collision_rect.y + collision_rect.height and
+                self.y + self.height > collision_rect.y)
     
     def draw(self, screen, camera):
         # Применяем камеру
         rect = camera.apply_rect(self.get_rect())
+        
+        # Рисуем игрока (всегда полностью видимым)
         pygame.draw.rect(screen, self.color, rect)
+        
+        # Обводка
+        pygame.draw.rect(screen, BLACK, rect, 2)
         
     def get_rect(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)
