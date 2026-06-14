@@ -18,11 +18,13 @@ class InteractionZone:
         return self.active
     
     def draw(self, screen, camera):
-        """Рисует зону с масштабом через камеру"""
-        rect = camera.apply_rect(self.get_rect())
-        surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-        pygame.draw.rect(surface, (0, 255, 0, 100), (0, 0, rect.width, rect.height))
-        screen.blit(surface, rect.topleft)
+        """🔧 ОТРИСОВКА ОТКЛЮЧЕНА — зоны теперь невидимы"""
+        # Закомментировано для скрытия зон
+        # rect = camera.apply_rect(self.get_rect())
+        # surface = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+        # pygame.draw.rect(surface, (0, 255, 0, 100), (0, 0, rect.width, rect.height))
+        # screen.blit(surface, rect.topleft)
+        pass  # Ничего не рисуем
     
     def get_rect(self):
         return pygame.Rect(self.x, self.y, self.width, self.height)

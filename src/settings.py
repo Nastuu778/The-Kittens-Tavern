@@ -1,4 +1,5 @@
 # Размеры экрана
+from enum import Enum
 WIDTH = 1480
 HEIGHT = 920
 FPS = 25
