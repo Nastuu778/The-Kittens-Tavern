@@ -87,7 +87,7 @@ class Game:
             )
             village.map_data = map_data
             village.transitions = [
-                TransitionZone(1454, 500, 50, 100, "location_2", 50, 500),
+                TransitionZone(300, 200, 50, 100, "location_2", 50, 500),
             ]
             locations["location_1"] = village
             
@@ -146,15 +146,20 @@ class Game:
             )
             
             player_rect = self.player.get_rect()
-            for zone in self.current_location.zones:
-                zone.active = zone.check_interaction(player_rect)
             
+            # 🔧 Отладка переходов
             for transition in self.current_location.transitions:
                 if transition.check_transition(player_rect):
+                    print(f"🚪 Переход сработал! Цель: {transition.target_location}")
                     self.change_location(transition.target_location, 
-                                       transition.target_x, 
-                                       transition.target_y)
+                                    transition.target_x, 
+                                    transition.target_y)
                     break
+                else:
+                    # Проверяем расстояние до перехода
+                    zone_rect = pygame.Rect(transition.x, transition.y, transition.width, transition.height)
+                    if player_rect.colliderect(zone_rect.inflate(50, 50)):
+                        print(f"👀 Рядом с переходом! Игрок: {player_rect.center}, Зона: {zone_rect.center}")
         
         self.camera.update(self.player)
         self.dialog_system.update(self.dt)
