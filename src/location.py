@@ -101,23 +101,23 @@ class TransitionZone:
         return False
     
     def draw(self, screen, camera):
-        """Отрисовка зоны перехода с масштабом"""
-        # Применяем камеру с масштабом
-        screen_rect = camera.apply_rect(
-            pygame.Rect(self.x, self.y, self.width, self.height)
-        )
+        # """Отрисовка зоны перехода с масштабом"""
+        # # Применяем камеру с масштабом
+        # screen_rect = camera.apply_rect(
+        #     pygame.Rect(self.x, self.y, self.width, self.height)
+        # )
         
-        # Рисуем полупрозрачную зону
-        surface = pygame.Surface((screen_rect.width, screen_rect.height), pygame.SRCALPHA)
-        surface.fill((100, 100, 255, 128))  # Синий с прозрачностью
-        screen.blit(surface, screen_rect.topleft)
+        # # Рисуем полупрозрачную зону
+        # surface = pygame.Surface((screen_rect.width, screen_rect.height), pygame.SRCALPHA)
+        # surface.fill((100, 100, 255, 128))  # Синий с прозрачностью
+        # screen.blit(surface, screen_rect.topleft)
         
-        # Рисуем границу
-        pygame.draw.rect(screen, WHITE, screen_rect, 3)
+        # # Рисуем границу
+        # pygame.draw.rect(screen, WHITE, screen_rect, 3)
         
-        # Рисуем текст
-        font = pygame.font.Font(None, 24)
-        text = font.render("ВЫХОД", True, WHITE)
-        text_rect = text.get_rect(center=screen_rect.center)
-        screen.blit(text, text_rect)
-        # pass
+        # # Рисуем текст
+        # font = pygame.font.Font(None, 24)
+        # text = font.render("ВЫХОД", True, WHITE)
+        # text_rect = text.get_rect(center=screen_rect.center)
+        # screen.blit(text, text_rect)
+        pass

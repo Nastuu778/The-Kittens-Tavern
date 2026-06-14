@@ -10,6 +10,8 @@ from camera import Camera
 from location_builder import VillageBuilder, ForestBuilder, LakeBuilder
 from map_loader import MapLoader
 from settings import LAYER_RENDER_ORDER
+from item import Item
+from pickup_menu import PickupMenu
 
 class Game:
     def __init__(self):
@@ -22,7 +24,7 @@ class Game:
         # Система диалогов
         self.dialog_system = DialogSystem()
         
-        # Отдельные загрузчики для каждой карты!
+        # Отдельные загрузчики для каждой карты
         self.map_loader_village = MapLoader()
         self.map_loader_forest = MapLoader()
         self.map_loader_lake = MapLoader()
@@ -47,7 +49,21 @@ class Game:
         
         # Отладка
         self._debug_printed = False
-        
+
+        # 🔧 Система подбора предметов
+        self.pickup_menu = PickupMenu()
+
+        # Предметы на карте
+        self.items = {
+            "location_1": [
+                # Бутылка с зельем на 195, 168
+                # Зона взаимодействия: x от 175 до 200, y от 150 до 185
+                Item(195, 168, "Зелье", interaction_zone=(175, 150, 25, 35)),
+            ],
+            "location_2": [],  # Лес
+            "location_3": [],  # Озеро
+        }
+                        
     def create_locations(self):
         """Создание всех локаций игры"""
         locations = {}
@@ -95,7 +111,7 @@ class Game:
                             
                             transitions.append(TransitionZone(
                                 obj['x'], obj['y'],
-                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('width', 50) + 10,
                                 obj.get('height', 100),
                                 props.get('target_location', 'location_2'),
                                 props.get('target_x', 40),
@@ -106,7 +122,7 @@ class Game:
             if not transitions:
                 print("⚠️ Переходы не найдены, добавляю стандартный")
                 transitions = [
-                    TransitionZone(720, 230, 10 + 10, 80, "location_2", 40, 265),  # ← ШИРЕ
+                    TransitionZone(720, 230, 10 + 10, 80, "location_2", 40, 265),
                 ]
             
             village = Location(
@@ -184,7 +200,7 @@ class Game:
                             
                             transitions.append(TransitionZone(
                                 obj['x'], obj['y'],
-                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('width', 50) + 10,
                                 obj.get('height', 100),
                                 props.get('target_location', 'location_1'),
                                 props.get('target_x', 700),
@@ -195,8 +211,8 @@ class Game:
             if not transitions:
                 print("⚠️ Переходы не найдены, добавляю стандартные")
                 transitions = [
-                    TransitionZone(0, 200, 10 + 10, 180, "location_1", 680, 280),     # ← ШИРЕ
-                    TransitionZone(720, 180, 10 + 10, 200, "location_3", 50, 200),    # ← ШИРЕ
+                    TransitionZone(0, 200, 10 + 10, 180, "location_1", 680, 280),
+                    TransitionZone(720, 180, 10 + 10, 200, "location_3", 50, 200),
                 ]
             
             forest = Location(
@@ -274,7 +290,7 @@ class Game:
                             
                             transitions.append(TransitionZone(
                                 obj['x'], obj['y'],
-                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('width', 50) + 10,
                                 obj.get('height', 100),
                                 props.get('target_location', 'location_2'),
                                 props.get('target_x', 700),
@@ -285,7 +301,7 @@ class Game:
             if not transitions:
                 print("⚠️ Переходы не найдены, добавляю стандартный")
                 transitions = [
-                    TransitionZone(0, 220, 10 + 10, 130, "location_2", 650, 230),     # ← ШИРЕ
+                    TransitionZone(0, 220, 10 + 10, 130, "location_2", 650, 230),
                 ]
             
             lake = Location(
@@ -316,19 +332,32 @@ class Game:
         
         return locations
     
+    def get_nearby_item(self):
+        """🔧 Возвращает предмет, рядом с которым находится игрок (или None)"""
+        player_rect = self.player.get_rect()
+        current_items = self.items.get(self.current_location_id, [])
+        
+        for item in current_items:
+            if not item.picked_up and item.check_interaction(player_rect):
+                return item
+        
+        return None
+    
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-                
+            
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_e:
-                    if not self.dialog_system.active:
-                        for zone in self.current_location.zones:
-                            if zone.active:
-                                self.dialog_system.start_dialog(zone.npc_id)
-                                break
+                # 🔧 Обработка меню подбора (приоритет выше всего)
+                if self.pickup_menu.active:
+                    if event.key == pygame.K_y:
+                        self.pickup_menu.confirm()
+                    elif event.key == pygame.K_n or event.key == pygame.K_ESCAPE:
+                        self.pickup_menu.close()
+                    return  # Не обрабатываем другие клавиши
                 
+                # Диалоги
                 if event.key == pygame.K_SPACE:
                     if self.dialog_system.active:
                         self.dialog_system.next_line()
@@ -336,30 +365,46 @@ class Game:
                 if event.key == pygame.K_ESCAPE:
                     if self.dialog_system.active:
                         self.dialog_system.end_dialog()
+                
+                # 🔧 Взаимодействие с предметами
+                if event.key == pygame.K_e:
+                    if not self.dialog_system.active:
+                        player_rect = self.player.get_rect()
+                        current_items = self.items.get(self.current_location_id, [])
+                        
+                        for item in current_items:
+                            if item.check_interaction(player_rect):
+                                self.pickup_menu.open(item)
+                                break
     
     def update(self):
-        if not self.dialog_system.active:
-            keys = pygame.key.get_pressed()
-            
-            walls = self.current_location.get_walls()
-            
-            self.player.move(
-                keys, 
-                walls,
-                self.current_location.width,
-                self.current_location.height
-            )
-            
-            player_rect = self.player.get_rect()
-            
-            # Проверка переходов
-            for transition in self.current_location.transitions:
-                if transition.check_transition(player_rect):
-                    print(f"🚪 Переход! Цель: {transition.target_location}")
-                    self.change_location(transition.target_location, 
-                                    transition.target_x, 
-                                    transition.target_y)
-                    break
+        # Блокируем движение если открыто меню подбора
+        if self.pickup_menu.active or self.dialog_system.active:
+            self.camera.update(self.player)
+            self.dialog_system.update(self.dt)
+            return
+        
+        keys = pygame.key.get_pressed()
+        
+        walls = self.current_location.get_walls()
+        
+        self.player.move(
+            keys, 
+            walls,
+            self.current_location.width,
+            self.current_location.height
+        )
+        
+        player_rect = self.player.get_rect()
+        
+        # Проверка переходов
+        for transition in self.current_location.transitions:
+            if transition.check_transition(player_rect):
+                print(f"🚪 Переход! Цель: {transition.target_location}")
+                self.change_location(transition.target_location, 
+                                transition.target_x, 
+                                transition.target_y)
+                break
         
         self.camera.update(self.player)
         self.dialog_system.update(self.dt)
@@ -497,6 +542,9 @@ class Game:
         for zone in self.current_location.zones:
             zone.draw(self.screen, self.camera)
         
+        # 🔧 Рисуем меню подбора (ПОВЕРХ всего)
+        self.pickup_menu.draw(self.screen)
+        
         # Рисуем интерфейс
         self.draw_ui()
         self.dialog_system.draw(self.screen)
@@ -519,8 +567,42 @@ class Game:
         )
         self.screen.blit(coords_text, (10, 60))
         
-        if not self.dialog_system.active:
-            controls_text = small_font.render("WASD - движение, E - диалог, SPACE - далее", True, BLACK)
+        # 🔧 Проверяем, есть ли предмет рядом
+        nearby_item = self.get_nearby_item()
+        
+        if self.pickup_menu.active:
+            # Меню подбора открыто
+            hint_text = small_font.render("Y - взять, N/ESC - отмена", True, BLACK)
+            pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - DIALOG_BOX_HEIGHT - 50, 350, 35))
+            self.screen.blit(hint_text, (15, HEIGHT - DIALOG_BOX_HEIGHT - 43))
+        
+        elif self.dialog_system.active:
+            # Диалог активен
+            hint_text = small_font.render("SPACE - далее, ESC - закрыть", True, BLACK)
+            pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - DIALOG_BOX_HEIGHT - 50, 350, 35))
+            self.screen.blit(hint_text, (15, HEIGHT - DIALOG_BOX_HEIGHT - 43))
+        
+        elif nearby_item:
+            # 🔧 Предмет рядом — показываем подсказку "Нажмите E"
+            hint_text = font.render(f"Нажмите E, чтобы взять {nearby_item.name}", True, (255, 215, 0))
+            
+            # Рисуем фон подсказки
+            text_width = hint_text.get_width() + 20
+            text_height = 40
+            hint_x = (WIDTH - text_width) // 2
+            hint_y = HEIGHT - 100
+            
+            pygame.draw.rect(self.screen, (50, 50, 50), (hint_x - 2, hint_y - 2, text_width + 4, text_height + 4))
+            pygame.draw.rect(self.screen, WHITE, (hint_x, hint_y, text_width, text_height))
+            pygame.draw.rect(self.screen, BLACK, (hint_x, hint_y, text_width, text_height), 2)
+            
+            # Рисуем текст по центру
+            text_rect = hint_text.get_rect(center=(hint_x + text_width // 2, hint_y + text_height // 2))
+            self.screen.blit(hint_text, text_rect)
+        
+        else:
+            # Обычная подсказка управления
+            controls_text = small_font.render("WASD - движение, E - взаимодействие", True, BLACK)
             self.screen.blit(controls_text, (10, HEIGHT - 200))
             
             for zone in self.current_location.zones:
@@ -528,10 +610,6 @@ class Game:
                     hint_text = font.render("Нажмите E для разговора", True, (0, 128, 0))
                     pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - 240, 300, 40))
                     self.screen.blit(hint_text, (20, HEIGHT - 232))
-        else:
-            hint_text = small_font.render("SPACE - далее, ESC - закрыть", True, BLACK)
-            pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - DIALOG_BOX_HEIGHT - 50, 350, 35))
-            self.screen.blit(hint_text, (15, HEIGHT - DIALOG_BOX_HEIGHT - 43))
     
     def run(self):
         while self.running:
