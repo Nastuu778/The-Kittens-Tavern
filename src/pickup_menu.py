@@ -13,19 +13,19 @@ class PickupMenu:
         self.active = True
         self.current_item = item
     
-    def close(self):
-        """Закрывает меню"""
-        self.active = False
-        self.current_item = None
-    
     def confirm(self):
         """Подтверждает подбор"""
         if self.current_item:
             self.current_item.picked_up = True
             print(f"✅ Подобрano: {self.current_item.name}")
-            self.close()
+            # 🔧 НЕ вызываем self.close() здесь - оставим current_item для инвентаря
             return True
         return False
+    
+    def close(self):
+        """Закрывает меню и очищает текущий предмет"""
+        self.active = False
+        self.current_item = None
     
     def draw(self, screen):
         """Рисует меню подбора"""
@@ -53,6 +53,7 @@ class PickupMenu:
         screen.blit(text, text_rect)
         
         # Подсказки
-        hint = self.small_font.render("Y - Да, N - Нет", True, (100, 100, 100))
+        # 🔧 Обновлённые подсказки (Q/R вместо Y/N)
+        hint = self.small_font.render("Q - Да, R - Нет", True, (100, 100, 100))
         hint_rect = hint.get_rect(center=(WIDTH // 2, box_y + 85))
         screen.blit(hint, hint_rect)

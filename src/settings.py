@@ -38,6 +38,7 @@ DIALOG_TEXT_SPEED = 0.05  # секунды на символ
 
 # PLAYER_SIZE = 40  # Остаётся неизменным
 PLAYER_SPEED = 5  # Можно чуть увеличить
+PLAYER_SPRINT_MULTIPLIER = 1.8  # Множитель скорости спринта
 MAP_SCALE = 2     # Карта в 2 раза больше
 
 LAYER_RENDER_ORDER = {
