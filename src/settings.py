@@ -21,10 +21,14 @@ TEX_STONE = (105, 105, 105)      # камень
 TEX_DOOR = (0, 0, 0)             # дверь (черный)
 TEX_BUSH = (0, 100, 0)           # куст
 
+# Цвета для леса
+FOREST_BG = (34, 139, 34)  # Темно-зеленый фон
+TEX_FOREST_GROUND = (34, 139, 34)  # Лесная земля
+TEX_FOREST_PATH = (101, 67, 33)  # Лесная тропинка
 
 # Игрок
 PLAYER_SPEED = 5
-PLAYER_SIZE = 40
+PLAYER_SIZE = 64
 
 # Диалоги
 DIALOG_BOX_HEIGHT = 180
@@ -43,3 +47,10 @@ LAYER_RENDER_ORDER = {
     'middle_above': ['Middle', 'Деревья', 'Ворота', 'Слой тайлов 9', 'Слой тайлов 23'],
     'foreground': ['Front', 'Слой тайлов 24', 'Забор']  # Добавил Забор сюда
 }
+
+# LAYER_RENDER_ORDER = {
+#     'background': ['Background', 'Ground', 'Terrain'],
+#     'middle_below': ['Paths', 'Decorations_Below'],
+#     'middle_above': ['Objects', 'Decorations_Above', 'Trees_Lower'],
+#     'foreground': ['Foreground', 'Trees_Upper', 'Effects']
+# }

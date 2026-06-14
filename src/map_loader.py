@@ -6,6 +6,7 @@ from wall import Wall
 class MapLoader:
     def __init__(self):
         self.tilesets = {}
+        self.tileset_list = []
         
     def load_tileset(self, tileset_data, map_dir):
         """Загружает тайлсет из JSON"""
@@ -15,12 +16,30 @@ class MapLoader:
             os.path.join(map_dir, image_path),
             image_path,
             os.path.join('assets', 'tilesets', os.path.basename(image_path)),
+            os.path.join('..', 'assets', 'tilesets', os.path.basename(image_path)),
         ]
         
         tile_width = tileset_data['tilewidth']
         tile_height = tileset_data['tileheight']
         first_gid = tileset_data['firstgid']
-        columns = tileset_data['columns']
+        columns = tileset_data.get('columns', 0)
+        
+        # Получаем количество тайлов
+        if 'tilecount' in tileset_data:
+            tile_count = tileset_data['tilecount']
+        else:
+            found_path = None
+            for path in possible_paths:
+                if os.path.exists(path):
+                    found_path = path
+                    break
+            if found_path:
+                img = pygame.image.load(found_path)
+                rows = img.get_height() // tile_height
+                cols = img.get_width() // tile_width
+                tile_count = rows * cols
+            else:
+                tile_count = 0
         
         found_path = None
         for path in possible_paths:
@@ -29,16 +48,15 @@ class MapLoader:
                 break
         
         if not found_path:
-            print(f"❌ Файл не найден: {image_path}")
+            print(f"❌ Файл тайлсета не найден: {image_path}")
             return
         
         try:
             image = pygame.image.load(found_path).convert_alpha()
-            print(f"✅ Загружен тайлсет: {os.path.basename(found_path)}")
+            print(f"✅ Загружен тайлсет: {os.path.basename(found_path)} (firstGID: {first_gid})")
             
             tiles = []
-            tile_count = tileset_data['tilecount']
-            rows = (tile_count + columns - 1) // columns
+            rows = (tile_count + columns - 1) // columns if columns > 0 else 0
             
             for row in range(rows):
                 for col in range(columns):
@@ -56,9 +74,13 @@ class MapLoader:
                 'width': tile_width,
                 'height': tile_height,
                 'first_gid': first_gid,
-                'columns': columns
+                'columns': columns,
+                'tilecount': tile_count
             }
-            print(f"   Нарезано {len(tiles)} тайлов (GID {first_gid}-{first_gid+len(tiles)-1})")
+            
+            self.tileset_list = sorted(self.tilesets.items())
+            
+            print(f"   Нарезано {len(tiles)} тайлов (GID {first_gid}-{first_gid + len(tiles) - 1})")
             
         except Exception as e:
             print(f"❌ Ошибка загрузки {found_path}: {e}")
@@ -67,20 +89,23 @@ class MapLoader:
         """Получает тайл по его gid"""
         if gid == 0:
             return None
-            
-        matching_gid = None
-        for first_gid in self.tilesets.keys():
+        
+        original_gid = gid
+        gid = gid & 0x0FFFFFFF  # Убираем флаги
+        
+        selected_tileset = None
+        for first_gid, tileset in self.tileset_list:
             if gid >= first_gid:
-                if matching_gid is None or first_gid > matching_gid:
-                    matching_gid = first_gid
+                selected_tileset = tileset
+            else:
+                break
         
-        if matching_gid is not None:
-            tileset = self.tilesets[matching_gid]
-            tile_index = gid - matching_gid
-            if 0 <= tile_index < len(tileset['tiles']):
-                return tileset['tiles'][tile_index]
+        if selected_tileset:
+            tile_index = gid - selected_tileset['first_gid']
+            if 0 <= tile_index < len(selected_tileset['tiles']):
+                return selected_tileset['tiles'][tile_index]
         
-        print(f"⚠️  Тайл GID {gid} не найден")
+        # Возвращаем заглушку
         surface = pygame.Surface((16, 16))
         surface.fill((255, 0, 255))
         return surface
@@ -99,42 +124,45 @@ class MapLoader:
         print(f"   Размер тайла: {map_data['tilewidth']}x{map_data['tileheight']}")
         print(f"   Тайлсетов: {len(map_data['tilesets'])}")
         
+        self.tilesets = {}
+        self.tileset_list = []
+        
         for tileset in map_data['tilesets']:
-            print(f"   Загрузка тайлсета: {tileset['name']}")
+            print(f"   Загрузка тайлсета: {tileset.get('name', 'unknown')}")
             self.load_tileset(tileset, map_dir)
         
-        # 🔍 ОТЛАДКА: выводим все слои
+        print(f"   Всего загружено тайлсетов: {len(self.tilesets)}")
+        
         print(f"   Слоёв в карте: {len(map_data['layers'])}")
         for layer in map_data['layers']:
-            print(f"      - {layer.get('name')} (тип: {layer.get('type')})")
+            layer_type = layer.get('type', 'unknown')
+            layer_name = layer.get('name', 'unnamed')
+            print(f"      - {layer_name} (тип: {layer_type})")
         
         print(f"✅ Карта загружена успешно!")
         return map_data
     
     def load_collision_layer(self, layer_data, scale=1):
-        """Загружает хитбоксы из слоя объектов"""
+        """Загружает хитбоксы из слоя объектов - БЕЗ СМЕЩЕНИЯ"""
         walls = []
         
-        # На сколько пикселей сместить вниз
-        Y_OFFSET = 200  # ← поменяй значение под свои нужды
+        # Убираем смещение - теперь 0
+        Y_OFFSET = 0  # ← ИСПРАВЛЕНО: убираем смещение
         
         for obj in layer_data.get('objects', []):
             x = obj['x']
-            y = obj['y'] + Y_OFFSET  # ← Добавляем смещение вниз
+            y = obj['y'] + Y_OFFSET
             width = obj.get('width', 0)
             height = obj.get('height', 0)
             
-            print(f"Было y={obj['y']}, стало y={y}")  # ← Отладка
-
             if width > 0 and height > 0:
                 walls.append(Wall(x, y, width, height))
         
-        print(f"   ✅ Загружено {len(walls)} хитбоксов (смещены вниз на {Y_OFFSET})")
+        print(f"   ✅ Загружено {len(walls)} хитбоксов")
         return walls
 
-    # Этот метод должен быть на том же уровне отступа, что и load_collision_layer
     def load_collision_from_tiles(self, layer, map_data, scale=1):
-        """Загружает хитбоксы из тайлового слоя коллизий"""
+        """Загружает хитбоксы из тайлового слоя коллизий - БЕЗ СМЕЩЕНИЯ"""
         collision_walls = []
         tile_width = map_data['tilewidth']
         tile_height = map_data['tileheight']
@@ -142,15 +170,15 @@ class MapLoader:
         
         data = layer.get('data', [])
         
-        # 🔧 Добавь смещение вниз
-        Y_OFFSET = 10  # ← поменяй на нужное значение
+        # Убираем смещение
+        Y_OFFSET = 0  # ← ИСПРАВЛЕНО: убираем смещение
         
         for i, gid in enumerate(data):
-            if gid != 0:  # Если тайл коллизии
+            if gid != 0:
                 x = (i % map_width) * tile_width
-                y = (i // map_width) * tile_height + Y_OFFSET  # ← ДОБАВЛЯЕМ СМЕЩЕНИЕ
+                y = (i // map_width) * tile_height + Y_OFFSET
                 
                 collision_walls.append(Wall(x, y, tile_width, tile_height))
         
-        print(f"   ✅ Загружено {len(collision_walls)} хитбоксов из тайлового слоя (смещены на {Y_OFFSET} вниз)")
+        print(f"   ✅ Загружено {len(collision_walls)} хитбоксов из тайлового слоя")
         return collision_walls

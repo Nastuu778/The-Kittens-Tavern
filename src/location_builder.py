@@ -70,7 +70,7 @@ class VillageBuilder(LocationBuilder):
         
         # Переходы
         self.transitions.append(
-            TransitionZone(1950, 650, 50, 100, "location_2", 50, 650)
+            TransitionZone(1950, 650, 50, 100, "location_2", 40, 265)
         )
 
 
@@ -95,10 +95,10 @@ class ForestBuilder(LocationBuilder):
         
         # Переходы
         self.transitions.append(
-            TransitionZone(0, 650, 50, 100, "location_1", 1900, 650)
+            TransitionZone(20, 265, 10, 80, "location_1", 700, 270)  # ← Изменил x, y зоны
         )
         self.transitions.append(
-            TransitionZone(1150, 400, 50, 100, "location_3", 50, 200)
+            TransitionZone(710, 175, 10, 80, "location_3", 50, 200)  # ← Озеро: x=710, y=175
         )
 
 
@@ -125,5 +125,5 @@ class LakeBuilder(LocationBuilder):
         
         # Переход
         self.transitions.append(
-            TransitionZone(0, 200, 50, 100, "location_2", 1100, 400)
+            TransitionZone(710, 175, 50, 175, "location_3", 50, 200)
         )

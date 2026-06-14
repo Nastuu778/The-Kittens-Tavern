@@ -101,13 +101,10 @@ class TransitionZone:
         return False
     
     def draw(self, screen, camera):
-        """Отрисовка зоны перехода"""
-        # Применяем камеру
-        screen_rect = pygame.Rect(
-            self.x * camera.scale + camera.camera.x,
-            self.y * camera.scale + camera.camera.y,
-            self.width * camera.scale,
-            self.height * camera.scale
+        """Отрисовка зоны перехода с масштабом"""
+        # Применяем камеру с масштабом
+        screen_rect = camera.apply_rect(
+            pygame.Rect(self.x, self.y, self.width, self.height)
         )
         
         # Рисуем полупрозрачную зону
@@ -123,3 +120,4 @@ class TransitionZone:
         text = font.render("ВЫХОД", True, WHITE)
         text_rect = text.get_rect(center=screen_rect.center)
         screen.blit(text, text_rect)
+        # pass

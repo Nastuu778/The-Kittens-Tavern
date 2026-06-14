@@ -22,58 +22,92 @@ class Game:
         # Система диалогов
         self.dialog_system = DialogSystem()
         
-        # Загрузчик карт Tiled
-        self.map_loader = MapLoader()
+        # Отдельные загрузчики для каждой карты!
+        self.map_loader_village = MapLoader()
+        self.map_loader_forest = MapLoader()
+        self.map_loader_lake = MapLoader()
         
         # Сначала создаем камеру с временными размерами
-        self.camera = Camera(1000, 1000)  # Временные размеры
+        self.camera = Camera(1000, 1000)
         
-        # Создаем локации (теперь self.camera существует)
+        # Создаем локации
         self.locations = self.create_locations()
-        self.current_location_id = "location_1"
+        self.current_location_id = "location_1" 
         self.current_location = self.locations[self.current_location_id]
         
         # Игрок
         self.player = Player(200, 400)
         
-        # Обновляем камеру с правильными размерами текущей локации
+        # Обновляем камеру
         self.camera.change_size(self.current_location.width, self.current_location.height)
         self.camera.update(self.player)
         
         # Для анимации текста
         self.dt = 0
         
+        # Отладка
+        self._debug_printed = False
+        
     def create_locations(self):
         """Создание всех локаций игры"""
         locations = {}
         
-        # === ЛОКАЦИЯ 1: Деревня (из Tiled карты) ===
+        # === ЛОКАЦИЯ 1: Деревня ===
+        print("\n" + "="*50)
+        print("ЗАГРУЗКА ДЕРЕВНИ")
+        print("="*50)
+        
         try:
-            map_data = self.map_loader.load_map('village.tmj')
+            map_data = self.map_loader_village.load_map('village.tmj')
             
-            # Размеры карты из Tiled
             map_width = map_data['width'] * map_data['tilewidth']
             map_height = map_data['height'] * map_data['tileheight']
             
-            # Ищем слой коллизий (любого типа!)
+            print(f"Размер карты: {map_width}x{map_height}")
+            
+            # Загружаем коллизии
             collision_walls = []
             for layer in map_data['layers']:
-                print(f"Слой: {layer['name']} (тип: {layer['type']})")
+                print(f"Слой: {layer.get('name')} (тип: {layer.get('type')})")
                 
-                # Если это Object Layer
-                if layer['name'] == 'Collision' and layer['type'] == 'objectgroup':
-                    collision_walls = self.map_loader.load_collision_layer(layer)
-                    print(f"✅ Загружено {len(collision_walls)} хитбоксов из objectgroup!")
-                    break
-
-                # Если это Tile Layer
-                elif layer['name'] == 'Collision' and layer['type'] == 'tilelayer':
-                    collision_walls = self.map_loader.load_collision_from_tiles(layer, map_data)
-                    print(f"✅ Загружено {len(collision_walls)} хитбоксов из tilelayer!")
-                    break
+                if layer.get('name') == 'Collision':
+                    if layer.get('type') == 'objectgroup':
+                        collision_walls = self.map_loader_village.load_collision_layer(layer)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+                    elif layer.get('type') == 'tilelayer':
+                        collision_walls = self.map_loader_village.load_collision_from_tiles(layer, map_data)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+            
+            # Загружаем переходы из объектов
+            transitions = []
+            for layer in map_data['layers']:
+                if layer.get('type') == 'objectgroup':
+                    for obj in layer.get('objects', []):
+                        if obj.get('name') == 'Transition' or obj.get('type') == 'Transition':
+                            props = obj.get('properties', {})
+                            if isinstance(props, list):
+                                props_dict = {}
+                                for p in props:
+                                    props_dict[p['name']] = p.get('value', 0)
+                                props = props_dict
                             
-            if not collision_walls:
-                print("❌ Хитбоксы НЕ загружены! Проверь слой 'Collision' в Tiled")
+                            transitions.append(TransitionZone(
+                                obj['x'], obj['y'],
+                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('height', 100),
+                                props.get('target_location', 'location_2'),
+                                props.get('target_x', 40),
+                                props.get('target_y', 285)
+                            ))
+                            print(f"✅ Найден переход в {props.get('target_location', 'location_2')}")
+            
+            if not transitions:
+                print("⚠️ Переходы не найдены, добавляю стандартный")
+                transitions = [
+                    TransitionZone(720, 230, 10 + 10, 80, "location_2", 40, 265),  # ← ШИРЕ
+                ]
             
             village = Location(
                 name="Деревня",
@@ -86,27 +120,199 @@ class Game:
                 height=map_height
             )
             village.map_data = map_data
-            village.transitions = [
-                TransitionZone(300, 200, 50, 100, "location_2", 50, 500),
-            ]
+            village.transitions = transitions
             locations["location_1"] = village
+            print(f"✅ Деревня загружена! Стены: {len(collision_walls)}")
             
         except Exception as e:
-            print(f"Ошибка загрузки карты: {e}")
+            print(f"❌ Ошибка загрузки деревни: {e}")
             import traceback
             traceback.print_exc()
-            print("⚠️ Используем резервную генерацию деревни")
-            # Fallback на старый builder
             village = VillageBuilder()
             locations["location_1"] = village.build()
         
-        # === ЛОКАЦИЯ 2: Лес (пока через builder) ===
-        forest = ForestBuilder()
-        locations["location_2"] = forest.build()
+        # === ЛОКАЦИЯ 2: Лес ===
+        print("\n" + "="*50)
+        print("ЗАГРУЗКА ЛЕСА")
+        print("="*50)
         
-        # === ЛОКАЦИЯ 3: Озеро (пока через builder) ===
-        lake = LakeBuilder()
-        locations["location_3"] = lake.build()
+        try:
+            map_data = self.map_loader_forest.load_map('forest.tmj')
+            
+            map_width = map_data['width'] * map_data['tilewidth']
+            map_height = map_data['height'] * map_data['tileheight']
+            
+            print(f"Размер карты: {map_width}x{map_height}")
+            
+            # Загружаем коллизии
+            collision_walls = []
+            for layer in map_data['layers']:
+                print(f"Слой: {layer.get('name')} (тип: {layer.get('type')})")
+                
+                if layer.get('name') == 'Collision':
+                    if layer.get('type') == 'objectgroup':
+                        collision_walls = self.map_loader_forest.load_collision_layer(layer)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+                    elif layer.get('type') == 'tilelayer':
+                        collision_walls = self.map_loader_forest.load_collision_from_tiles(layer, map_data)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+            
+            # Если коллизий нет - создаем временные
+            if not collision_walls:
+                print("⚠️ Коллизии не найдены, создаю временные")
+                collision_walls = [
+                    Wall(0, 0, map_width, 10),
+                    Wall(0, 0, 10, map_height),
+                    Wall(map_width - 10, 0, 10, map_height),
+                    Wall(0, map_height - 10, map_width, 10),
+                ]
+            
+            # Загружаем переходы
+            transitions = []
+            for layer in map_data['layers']:
+                if layer.get('type') == 'objectgroup':
+                    for obj in layer.get('objects', []):
+                        if obj.get('name') == 'Transition' or obj.get('type') == 'Transition':
+                            props = obj.get('properties', {})
+                            if isinstance(props, list):
+                                props_dict = {}
+                                for p in props:
+                                    props_dict[p['name']] = p.get('value', 0)
+                                props = props_dict
+                            
+                            transitions.append(TransitionZone(
+                                obj['x'], obj['y'],
+                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('height', 100),
+                                props.get('target_location', 'location_1'),
+                                props.get('target_x', 700),
+                                props.get('target_y', 280)
+                            ))
+                            print(f"✅ Найден переход в {props.get('target_location', 'location_1')}")
+            
+            if not transitions:
+                print("⚠️ Переходы не найдены, добавляю стандартные")
+                transitions = [
+                    TransitionZone(0, 200, 10 + 10, 180, "location_1", 680, 280),     # ← ШИРЕ
+                    TransitionZone(720, 180, 10 + 10, 200, "location_3", 50, 200),    # ← ШИРЕ
+                ]
+            
+            forest = Location(
+                name="Лес",
+                bg_color=FOREST_BG,
+                walls=collision_walls,
+                zones=[],
+                npcs=[],
+                entities=[],
+                width=map_width,
+                height=map_height
+            )
+            forest.map_data = map_data
+            forest.transitions = transitions
+            locations["location_2"] = forest
+            print(f"✅ Лес загружен! Стены: {len(collision_walls)}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка загрузки леса: {e}")
+            import traceback
+            traceback.print_exc()
+            forest = ForestBuilder()
+            locations["location_2"] = forest.build()
+        
+        # === ЛОКАЦИЯ 3: Озеро ===
+        print("\n" + "="*50)
+        print("ЗАГРУЗКА ОЗЕРА")
+        print("="*50)
+        
+        try:
+            map_data = self.map_loader_lake.load_map('lake.tmj')
+            
+            map_width = map_data['width'] * map_data['tilewidth']
+            map_height = map_data['height'] * map_data['tileheight']
+            
+            print(f"Размер карты: {map_width}x{map_height}")
+            
+            # Загружаем коллизии
+            collision_walls = []
+            for layer in map_data['layers']:
+                print(f"Слой: {layer.get('name')} (тип: {layer.get('type')})")
+                
+                if layer.get('name') == 'Collision':
+                    if layer.get('type') == 'objectgroup':
+                        collision_walls = self.map_loader_lake.load_collision_layer(layer)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+                    elif layer.get('type') == 'tilelayer':
+                        collision_walls = self.map_loader_lake.load_collision_from_tiles(layer, map_data)
+                        print(f"✅ Загружено {len(collision_walls)} хитбоксов!")
+                        break
+            
+            # Если коллизий нет - создаем временные
+            if not collision_walls:
+                print("⚠️ Коллизии не найдены, создаю временные")
+                collision_walls = [
+                    Wall(0, 0, map_width, 10),
+                    Wall(0, 0, 10, map_height),
+                    Wall(map_width - 10, 0, 10, map_height),
+                    Wall(0, map_height - 10, map_width, 10),
+                ]
+            
+            # Загружаем переходы
+            transitions = []
+            for layer in map_data['layers']:
+                if layer.get('type') == 'objectgroup':
+                    for obj in layer.get('objects', []):
+                        if obj.get('name') == 'Transition' or obj.get('type') == 'Transition':
+                            props = obj.get('properties', {})
+                            if isinstance(props, list):
+                                props_dict = {}
+                                for p in props:
+                                    props_dict[p['name']] = p.get('value', 0)
+                                props = props_dict
+                            
+                            transitions.append(TransitionZone(
+                                obj['x'], obj['y'],
+                                obj.get('width', 50) + 10,  # ← ШИРЕ НА 10 ПИКСЕЛЕЙ
+                                obj.get('height', 100),
+                                props.get('target_location', 'location_2'),
+                                props.get('target_x', 700),
+                                props.get('target_y', 230)
+                            ))
+                            print(f"✅ Найден переход в {props.get('target_location', 'location_2')}")
+            
+            if not transitions:
+                print("⚠️ Переходы не найдены, добавляю стандартный")
+                transitions = [
+                    TransitionZone(0, 220, 10 + 10, 130, "location_2", 650, 230),     # ← ШИРЕ
+                ]
+            
+            lake = Location(
+                name="Озеро",
+                bg_color=(135, 206, 235),
+                walls=collision_walls,
+                zones=[],
+                npcs=[],
+                entities=[],
+                width=map_width,
+                height=map_height
+            )
+            lake.map_data = map_data
+            lake.transitions = transitions
+            locations["location_3"] = lake
+            print(f"✅ Озеро загружено! Стены: {len(collision_walls)}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка загрузки озера: {e}")
+            import traceback
+            traceback.print_exc()
+            lake = LakeBuilder()
+            locations["location_3"] = lake.build()
+        
+        print("\n" + "="*50)
+        print(f"ГОТОВО! Доступно локаций: {list(locations.keys())}")
+        print("="*50 + "\n")
         
         return locations
     
@@ -135,7 +341,6 @@ class Game:
         if not self.dialog_system.active:
             keys = pygame.key.get_pressed()
             
-            # Получаем стены и проверяем
             walls = self.current_location.get_walls()
             
             self.player.move(
@@ -147,25 +352,22 @@ class Game:
             
             player_rect = self.player.get_rect()
             
-            # 🔧 Отладка переходов
+            # Проверка переходов
             for transition in self.current_location.transitions:
                 if transition.check_transition(player_rect):
-                    print(f"🚪 Переход сработал! Цель: {transition.target_location}")
+                    print(f"🚪 Переход! Цель: {transition.target_location}")
                     self.change_location(transition.target_location, 
                                     transition.target_x, 
                                     transition.target_y)
                     break
-                else:
-                    # Проверяем расстояние до перехода
-                    zone_rect = pygame.Rect(transition.x, transition.y, transition.width, transition.height)
-                    if player_rect.colliderect(zone_rect.inflate(50, 50)):
-                        print(f"👀 Рядом с переходом! Игрок: {player_rect.center}, Зона: {zone_rect.center}")
         
         self.camera.update(self.player)
         self.dialog_system.update(self.dt)
     
     def change_location(self, location_id, player_x, player_y):
         """Переход между локациями"""
+        print(f"🔄 Переход в {location_id}")
+        
         if location_id in self.locations:
             self.current_location_id = location_id
             self.current_location = self.locations[location_id]
@@ -174,24 +376,26 @@ class Game:
             
             self.camera.change_size(self.current_location.width, self.current_location.height)
             
-            print(f"Переход на локацию: {self.current_location.name} ({self.current_location.width}x{self.current_location.height})")
+            print(f"✅ Переход в: {self.current_location.name}")
+            print(f"   Размер: {self.current_location.width}x{self.current_location.height}")
+            print(f"   Игрок на: ({player_x}, {player_y})")
+        else:
+            print(f"❌ Локация {location_id} не найдена!")
+            print(f"   Доступно: {list(self.locations.keys())}")
+
     
-    def draw_tiled_layer(self, layer_data):
-        """Рисует слой (рекурсивно, с поддержкой групп)"""
+    def draw_tiled_layer(self, layer_data, map_loader):
+        """Рисует слой с кэшированием масштабированных тайлов"""
         layer_type = layer_data.get('type')
         
         if layer_type == 'group':
             for child_layer in layer_data.get('layers', []):
-                self.draw_tiled_layer(child_layer)
+                self.draw_tiled_layer(child_layer, map_loader)
             return
         
-        if layer_type != 'tilelayer':
+        if layer_type != 'tilelayer' or not layer_data.get('visible', True):
             return
         
-        if not layer_data.get('visible', True):
-            return
-        
-        # Пропускаем слой Collision (это хитбоксы, не рисуем)
         if layer_data.get('name') == 'Collision':
             return
         
@@ -204,56 +408,84 @@ class Game:
         if not data:
             return
         
+        # 🔧 Создаём кэш для этого загрузчика (если ещё нет)
+        if not hasattr(map_loader, '_scaled_cache'):
+            map_loader._scaled_cache = {}
+        
+        # Предвычисляем масштабированные размеры
+        tw_s = tile_width * scale
+        th_s = tile_height * scale
+        
         for i, gid in enumerate(data):
             if gid == 0:
                 continue
             
-            x = (i % map_width) * tile_width
-            y = (i // map_width) * tile_height
+            tx = i % map_width
+            ty = i // map_width
             
-            tile = self.map_loader.get_tile(gid)
-            if tile:
-                scaled_tile = pygame.transform.scale(tile, (tile_width * scale, tile_height * scale))
-                
-                screen_x = x * scale + self.camera.camera.x
-                screen_y = y * scale + self.camera.camera.y
-                
-                if (screen_x + tile_width * scale >= 0 and screen_x <= WIDTH and
-                    screen_y + tile_height * scale >= 0 and screen_y <= HEIGHT):
-                    self.screen.blit(scaled_tile, (screen_x, screen_y))
+            # Вычисляем экранные координаты
+            screen_x = tx * tile_width * scale + self.camera.camera.x
+            screen_y = ty * tile_height * scale + self.camera.camera.y
+            
+            # 🔧 Отсекаем тайлы за пределами экрана (главная оптимизация)
+            if screen_x + tw_s < 0 or screen_x > WIDTH or screen_y + th_s < 0 or screen_y > HEIGHT:
+                continue
+            
+            # 🔧 Кэшируем масштабированный тайл (масштабируем только 1 раз!)
+            cache_key = (gid, scale)
+            if cache_key not in map_loader._scaled_cache:
+                orig_tile = map_loader.get_tile(gid)
+                if orig_tile:
+                    map_loader._scaled_cache[cache_key] = pygame.transform.scale(
+                        orig_tile, (int(tw_s), int(th_s))
+                    )
+                else:
+                    continue
+            
+            self.screen.blit(map_loader._scaled_cache[cache_key], (int(screen_x), int(screen_y)))
 
-    def _draw_layer_by_name(self, layer_name):
-        """Вспомогательный метод для отрисовки слоя по имени"""
+    def _draw_layer_by_name(self, layer_name, map_loader):
+        """Отрисовка слоя по имени"""
         for layer in self.current_location.map_data['layers']:
             if layer.get('name') == layer_name and layer.get('visible', True):
-                self.draw_tiled_layer(layer)
+                self.draw_tiled_layer(layer, map_loader)
 
     def draw(self):
         self.screen.fill(TEX_GRASS)
         
         if hasattr(self.current_location, 'map_data') and self.current_location.map_data:
+            # Выбираем правильный загрузчик для текущей локации
+            if self.current_location.name == "Деревня":
+                current_loader = self.map_loader_village
+            elif self.current_location.name == "Лес":
+                current_loader = self.map_loader_forest
+            elif self.current_location.name == "Озеро":
+                current_loader = self.map_loader_lake
+            else:
+                current_loader = self.map_loader_village
+            
             # Рисуем фон
             for layer_name in LAYER_RENDER_ORDER['background']:
-                self._draw_layer_by_name(layer_name)
+                self._draw_layer_by_name(layer_name, current_loader)
             
             # Рисуем средний слой (под игроком)
             for layer_name in LAYER_RENDER_ORDER['middle_below']:
-                self._draw_layer_by_name(layer_name)
+                self._draw_layer_by_name(layer_name, current_loader)
             
             # Рисуем игрока
             self.player.draw(self.screen, self.camera)
             
             # Рисуем средний слой (над игроком)
             for layer_name in LAYER_RENDER_ORDER['middle_above']:
-                self._draw_layer_by_name(layer_name)
+                self._draw_layer_by_name(layer_name, current_loader)
             
             # Рисуем передний план
             for layer_name in LAYER_RENDER_ORDER['foreground']:
-                self._draw_layer_by_name(layer_name)
+                self._draw_layer_by_name(layer_name, current_loader)
         else:
             self.current_location.draw(self.screen, self.camera, self.player)
         
-        # Рисуем переходы между локациями
+        # Рисуем переходы
         for transition in self.current_location.transitions:
             transition.draw(self.screen, self.camera)
         
@@ -265,11 +497,10 @@ class Game:
         for zone in self.current_location.zones:
             zone.draw(self.screen, self.camera)
         
-        # Рисуем интерфейс и диалоги
+        # Рисуем интерфейс
         self.draw_ui()
         self.dialog_system.draw(self.screen)
         
-        # Обновляем экран
         pygame.display.flip()
     
     def draw_ui(self):
@@ -283,8 +514,7 @@ class Game:
         self.screen.blit(location_text, (20, 18))
         
         coords_text = small_font.render(
-            f"X: {int(self.player.x)} Y: {int(self.player.y)} | "
-            f"Map: {self.current_location.width}x{self.current_location.height}", 
+            f"X: {int(self.player.x)} Y: {int(self.player.y)}", 
             True, BLACK
         )
         self.screen.blit(coords_text, (10, 60))
@@ -299,7 +529,7 @@ class Game:
                     pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - 240, 300, 40))
                     self.screen.blit(hint_text, (20, HEIGHT - 232))
         else:
-            hint_text = small_font.render("SPACE - следующая реплика, ESC - закрыть", True, BLACK)
+            hint_text = small_font.render("SPACE - далее, ESC - закрыть", True, BLACK)
             pygame.draw.rect(self.screen, WHITE, (10, HEIGHT - DIALOG_BOX_HEIGHT - 50, 350, 35))
             self.screen.blit(hint_text, (15, HEIGHT - DIALOG_BOX_HEIGHT - 43))
     
