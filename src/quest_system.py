@@ -127,8 +127,8 @@ class QuestSystem:
     
     def all_quests_completed(self):
         """Проверяет, все ли 3 квеста выполнены"""
-        claimed = self.get_claimed_quests()
-        return len(claimed) >= 3
+        completed = self.get_completed_quests()
+        return len(completed) >= 3
     
     def get_quest_state(self, quest_id):
         if quest_id in self.quests:

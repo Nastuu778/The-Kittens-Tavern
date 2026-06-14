@@ -73,22 +73,22 @@ class Game:
             "location_3": [],
         }
 
-        # NPC на локациях (с координатами из задания)
+        # NPC на локациях
         self._setup_npcs()
                         
     def _setup_npcs(self):
-        """Настраивает NPC на локациях с указанными координатами"""
-        # Деревня: Продавец Сасаныч (NPC_1) - x=110-140, y=168-178
+        """Настраивает NPC на локациях с увеличенными зонами взаимодействия"""
+        # Деревня: Продавец Сасаныч (NPC_1)
         if "location_1" in self.locations:
             self.locations["location_1"].npcs.append(NPC(110, 168, "NPC_1", (139, 69, 19)))
             self.locations["location_1"].zones.append(InteractionZone(80, 140, 80, 80, "NPC_1"))
         
-        # Лес: Садовод Мишаня (NPC_2) - x=255-300, y=360-400
+        # Лес: Садовод Мишаня (NPC_2)
         if "location_2" in self.locations:
             self.locations["location_2"].npcs.append(NPC(255, 360, "NPC_2", (34, 139, 34)))
             self.locations["location_2"].zones.append(InteractionZone(225, 330, 90, 90, "NPC_2"))
         
-        # Озеро: Старичёк Додошка (NPC_3) - x=100-135, y=215-240
+        # Озеро: Старичёк Додошка (NPC_3)
         if "location_3" in self.locations:
             self.locations["location_3"].npcs.append(NPC(100, 215, "NPC_3", (128, 128, 128)))
             self.locations["location_3"].zones.append(InteractionZone(70, 185, 80, 80, "NPC_3"))
@@ -284,10 +284,9 @@ class Game:
         return None
     
     def _start_quests_if_needed(self):
-        """🔧 Запускает квесты при первом разговоре с Сасанычем"""
-        # Проверяем, начаты ли уже квесты
+        """Запускает квесты при первом разговоре с Сасанычем"""
         any_started = any(
-            quest.state.name == "IN_PROGRESS" or quest.state.name == "COMPLETED" or quest.state.name == "CLAIMED"
+            quest.state.name in ("IN_PROGRESS", "COMPLETED", "CLAIMED")
             for quest in self.quest_system.quests.values()
         )
         
@@ -298,61 +297,109 @@ class Game:
             self.quest_system.start_quest("quest_map")
             print("✅ Квесты запущены!")
     
+    def _give_reward_if_all_quests_completed(self):
+        """Выдаёт рыбу после завершения всех квестов"""
+        print("\n" + "="*50)
+        print("🔍 ПРОВЕРКА ВЫДАЧИ НАГРАДЫ")
+        print("="*50)
+        
+        # Выводим состояние всех квестов
+        for qid, quest in self.quest_system.quests.items():
+            print(f"   {qid}: {quest.state.name} (собрано: {quest.collected}/{quest.target_count})")
+        
+        # Проверяем, все ли 3 квеста в состоянии COMPLETED
+        completed = self.quest_system.get_completed_quests()
+        print(f"\n   Завершённых квестов (COMPLETED): {len(completed)}")
+        
+        if len(completed) >= 3:
+            print("   ✅ ВСЕ 3 КВЕСТА ЗАВЕРШЕНЫ!")
+            
+            has_fish = any(item.name == "Рыба" for item in self.inventory.items)
+            print(f"   Рыба уже есть в инвентаре: {has_fish}")
+            
+            if not has_fish:
+                print("\n🎁 ВЫДАЮ НАГРАДУ: РЫБА!")
+                self.inventory.add_item("Рыба")
+                self.quest_notification = " Награда получена: 🐟 РЫБА! 🐟"
+                self.quest_notification_timer = 5.0
+                print("✅ РЫБА ДОБАВЛЕНА В ИНВЕНТАРЬ!")
+            else:
+                print("   ⚠️ Рыба уже есть, пропускаю")
+        else:
+            print(f"    Завершено только {len(completed)} из 3 квестов")
+        
+        print("="*50 + "\n")
+    
     def _get_dialog_key_for_npc(self, npc_id):
         """Определяет ключ диалога на основе состояния квестов"""
-        if npc_id == "NPC_1":  # Сасаныч
-            # 🔧 Запускаем квесты при первом разговоре
+        
+        # Проверяем, начаты ли квесты (разговор с Сасанычем был)
+        any_quest_started = any(
+            quest.state.name in ("IN_PROGRESS", "COMPLETED", "CLAIMED")
+            for quest in self.quest_system.quests.values()
+        )
+        
+        # === САСАНЫЧ (NPC_1) ===
+        if npc_id == "NPC_1":
             self._start_quests_if_needed()
             
-            claimed = self.quest_system.get_claimed_quests()
-            completed = self.quest_system.get_completed_quests()
-            active = self.quest_system.get_active_quests()
+            herbs = self.quest_system.get_quest_state("quest_herbs")
+            potion = self.quest_system.get_quest_state("quest_potion")
+            map_quest = self.quest_system.get_quest_state("quest_map")
             
-            if len(claimed) >= 3:
-                return "after_reward"
-            elif self.quest_system.all_quests_completed():
+            # Все 3 квеста завершены
+            if herbs == QuestState.COMPLETED and potion == QuestState.COMPLETED and map_quest == QuestState.COMPLETED:
                 return "all_quests_completed"
-            elif len(completed) >= 3:
-                return "all_quests_completed"
-            elif len(active) >= 1:
-                for quest in active:
-                    if quest.quest_id == "quest_herbs" and quest.collected < quest.target_count:
-                        return "quest_herbs_active"
-                    elif quest.quest_id == "quest_potion" and quest.collected < quest.target_count:
-                        return "quest_potion_active"
-                    elif quest.quest_id == "quest_map" and quest.collected < quest.target_count:
-                        return "quest_map_active"
-                return "quest_offer"
-            else:
-                return "quest_offer"
+            
+            # Проверяем активные квесты
+            if herbs == QuestState.IN_PROGRESS:
+                return "quest_herbs_active"
+            if potion == QuestState.IN_PROGRESS:
+                return "quest_potion_active"
+            if map_quest == QuestState.IN_PROGRESS:
+                return "quest_map_active"
+            
+            # Квесты только что запущены
+            return "quest_offer"
         
-        elif npc_id == "NPC_2":  # Мишаня
-            herbs_quest = self.quest_system.get_quest_state("quest_herbs")
-            if herbs_quest == QuestState.COMPLETED:
+        # === МИШАНЯ (NPC_2) ===
+        elif npc_id == "NPC_2":
+            if not any_quest_started:
+                return "locked_before_sasanych"
+            
+            herbs = self.quest_system.get_quest_state("quest_herbs")
+            
+            if herbs == QuestState.COMPLETED:
                 return "quest_herbs_delivered"
-            elif herbs_quest == QuestState.CLAIMED:
-                return "after_quest"
-            elif herbs_quest == QuestState.IN_PROGRESS:
+            elif herbs == QuestState.IN_PROGRESS:
                 return "quest_herbs_in_progress"
             else:
                 return "greeting"
         
-        elif npc_id == "NPC_3":  # Додошка
-            potion_quest = self.quest_system.get_quest_state("quest_potion")
-            if potion_quest == QuestState.COMPLETED:
+        # === ДОДОШКА (NPC_3) ===
+        elif npc_id == "NPC_3":
+            if not any_quest_started:
+                return "locked_before_sasanych"
+            
+            potion = self.quest_system.get_quest_state("quest_potion")
+            
+            if potion == QuestState.COMPLETED:
                 return "quest_potion_delivered"
-            elif potion_quest == QuestState.CLAIMED:
-                return "after_quest"
-            elif potion_quest == QuestState.IN_PROGRESS:
+            elif potion == QuestState.IN_PROGRESS:
                 return "quest_potion_in_progress"
             else:
                 return "greeting"
         
-        elif npc_id == "NPC_4":  # Рыбак
-            if self.quest_system.all_quests_completed():
+        # === РЫБАК (NPC_4) ===
+        elif npc_id == "NPC_4":
+            herbs = self.quest_system.get_quest_state("quest_herbs")
+            potion = self.quest_system.get_quest_state("quest_potion")
+            map_quest = self.quest_system.get_quest_state("quest_map")
+            
+            if herbs == QuestState.COMPLETED and potion == QuestState.COMPLETED and map_quest == QuestState.COMPLETED:
                 return "after_all_quests"
-            else:
-                return "greeting"
+            
+            return "greeting"
         
         return "greeting"
     
@@ -374,11 +421,10 @@ class Game:
                 continue
             
             if event.type == pygame.KEYDOWN:
-                # Закрытие на ESC (инвентарь, диалог, меню подбора)
+                # Закрытие на ESC
                 if event.key == pygame.K_ESCAPE:
                     if self.dialog_system.active:
                         self.dialog_system.end_dialog()
-                        # Проверяем выдачу награды после закрытия диалога
                         self._give_reward_if_all_quests_completed()
                     elif self.inventory.open:
                         self.inventory.close()
@@ -388,7 +434,7 @@ class Game:
                 # Диалоги (SPACE - следующая реплика)
                 if event.key == pygame.K_SPACE:
                     if self.dialog_system.active:
-                        result = self.dialog_system.next_line()
+                        self.dialog_system.next_line()
                         # Если диалог только что завершился
                         if not self.dialog_system.active:
                             self._give_reward_if_all_quests_completed()
@@ -399,7 +445,7 @@ class Game:
                         if self.pickup_menu.active:
                             self.pickup_menu.close()
                         else:
-                            # Сначала проверяем NPC — диалог + передача предмета
+                            # Сначала проверяем NPC
                             for zone in self.current_location.zones:
                                 if zone.active:
                                     dialog_key = self._get_dialog_key_for_npc(zone.npc_id)
@@ -427,7 +473,7 @@ class Game:
                             if item_name:
                                 # Просто добавляем в инвентарь (БЕЗ обновления квестов!)
                                 self.inventory.add_item(item_name)
-                                print(f" Подобрano: {item_name}")
+                                print(f" Подобрано: {item_name}")
                             self.pickup_menu.close()
                 
                 # Отмена подбора предмета (R)
@@ -453,7 +499,7 @@ class Game:
         self.player.move(keys, walls, self.current_location.width, self.current_location.height)
         
         player_rect = self.player.get_rect()
-        # 🔧 ОБНОВЛЕНИЕ СОСТОЯНИЯ ЗОН (для подсказки "E")
+        # Обновление состояния зон (для подсказки "E")
         for zone in self.current_location.zones:
             zone.check_interaction(player_rect)
         
@@ -627,7 +673,6 @@ class Game:
             for zone in self.current_location.zones:
                 if zone.active:
                     hint_text = font.render("Нажмите E для разговора", True, (0, 128, 0))
-                    # 🔧 УВЕЛИЧЕНА ШИРИНА ФОНА
                     text_width = hint_text.get_width() + 40
                     text_height = 40
                     hint_x = (WIDTH - text_width) // 2
@@ -644,20 +689,3 @@ class Game:
             self.update()
             self.draw()
         pygame.quit()
-
-    def _give_reward_if_all_quests_completed(self):
-        """🔧 Выдаёт рыбу после завершения всех квестов"""
-        # Проверяем, все ли квесты завершены и награда ещё не выдана
-        if self.quest_system.all_quests_completed():
-            # Проверяем, не выдана ли уже награда
-            claimed_quests = self.quest_system.get_claimed_quests()
-            if len(claimed_quests) >= 3:
-                # Проверяем, нет ли уже рыбы в инвентаре
-                has_fish = any(item.name == "Рыба" for item in self.inventory.items)
-                
-                if not has_fish:
-                    print("🎁 Все квесты выполнены! Выдаю награду...")
-                    self.inventory.add_item("Рыба")
-                    self.quest_notification = "🎉 Награда: 🐟 РЫБА! 🐟"
-                    self.quest_notification_timer = 5.0
-                    print("✅ Рыба добавлена в инвентарь!")
